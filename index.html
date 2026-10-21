@@ -1,0 +1,488 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Dial In Espresso</title>
+<meta name="theme-color" content="#1b1410">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Dial In">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<style>
+:root{--bg:#1b1410;--card:#2a201a;--line:#3d3028;--txt:#f3e9df;--mut:#b5a395;--acc:#d9a066;--ok:#8fbf7f;--warn:#e0b85a;--bad:#d9776a}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;background:var(--bg);color:var(--txt);font:16px/1.4 -apple-system,system-ui,sans-serif;padding:env(safe-area-inset-top) 0 calc(70px + env(safe-area-inset-bottom))}
+header{padding:14px 16px 4px;font-weight:700;font-size:20px;color:var(--acc)}
+main section{display:none;padding:8px 16px}
+main section.on{display:block}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin:10px 0}
+h2{font-size:17px;margin:0 0 10px}
+label{display:block;font-size:13px;color:var(--mut);margin:8px 0 3px}
+input,select,textarea{width:100%;padding:11px;border-radius:10px;border:1px solid var(--line);background:#1f1813;color:var(--txt);font-size:16px}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+button{font-size:16px;padding:12px 14px;border-radius:12px;border:0;background:var(--line);color:var(--txt)}
+button.main{background:var(--acc);color:#1b1410;font-weight:700;width:100%;margin-top:12px}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chips button{padding:9px 12px;font-size:15px}
+.chips button.on{background:var(--acc);color:#1b1410}
+.timer{font-size:56px;font-weight:700;text-align:center;font-variant-numeric:tabular-nums;margin:6px 0}
+.steps div{padding:6px 8px;border-radius:8px;color:var(--mut);font-size:15px}
+.steps div.now{background:var(--line);color:var(--txt)}
+.mut{color:var(--mut);font-size:13px}
+.sugg{border-left:4px solid var(--acc);padding:10px 12px;background:#33271f;border-radius:8px;margin-top:10px}
+.item{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+.tag{font-size:12px;padding:2px 8px;border-radius:20px;white-space:nowrap}
+.t-repos{background:#3a3550;color:#c9c3f0}.t-ideal{background:#2f4a2a;color:var(--ok)}.t-declin{background:#4a2f2a;color:var(--bad)}.t-gel{background:#28414a;color:#9fd3e6}
+nav{position:fixed;bottom:0;left:0;right:0;display:flex;background:#140f0c;border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom)}
+nav button{flex:1;background:none;border-radius:0;padding:12px 0;font-size:13px;color:var(--mut)}
+nav button.on{color:var(--acc)}
+.x{background:none;color:var(--mut);padding:4px 8px}
+button.ia{background:#3b2c22;color:var(--acc);border:1px solid var(--acc);font-weight:600}
+button:disabled{opacity:.5}
+</style>
+</head>
+<body>
+<header>Dial In Espresso</header>
+<main>
+  <section id="brew" class="on">
+    <div class="card">
+      <div class="chips" id="methods"></div>
+      <div class="row">
+        <div><label>Grain</label><select id="f-bean"></select></div>
+        <div><label>Mouture <span id="grinderName"></span></label><input id="f-mouture" type="number" inputmode="decimal" step="0.1"></div>
+      </div>
+      <div class="row3">
+        <div><label>Dose (g)</label><input id="f-dose" type="number" inputmode="decimal" step="0.1"></div>
+        <div><label id="l-eau">Eau (g)</label><input id="f-eau" type="number" inputmode="decimal" step="0.1"></div>
+        <div><label>Temp. (°C)</label><input id="f-temp" type="number" inputmode="decimal"></div>
+      </div>
+      <div class="mut" id="ratio"></div>
+    </div>
+    <div class="card" id="timerCard">
+      <div class="timer" id="clock">0:00</div>
+      <button class="main" id="tbtn">Démarrer</button>
+      <button class="main ia" id="iaBalance">📷 Lire la balance</button>
+      <div class="steps" id="steps"></div>
+    </div>
+    <div class="card">
+      <label id="l-temps">Temps (s)</label><input id="f-temps" type="number" inputmode="decimal">
+      <label>Goût</label>
+      <div class="chips" id="tastes"></div>
+      <label>Note</label>
+      <div class="chips" id="stars"></div>
+      <label>Notes</label><input id="f-notes" placeholder="optionnel">
+      <button class="main ia" id="iaGalette">📷 Analyser galette / crema</button>
+      <div id="diag"></div>
+      <button class="main" id="save">Enregistrer</button>
+      <div id="result"></div>
+    </div>
+  </section>
+
+  <section id="log"><div id="logList"></div></section>
+
+  <section id="beans">
+    <div class="card">
+      <h2>Ajouter un grain</h2>
+      <button class="main ia" id="iaSac" style="margin-top:0">📷 Scanner le sac</button>
+      <label>Nom</label><input id="b-nom" placeholder="ex. Éthiopie Guji">
+      <div class="row">
+        <div><label>Torréfacteur</label><input id="b-torr"></div>
+        <div><label>Origine / process</label><input id="b-orig"></div>
+      </div>
+      <div class="row">
+        <div><label>Torréfié le</label><input id="b-date" type="date"></div>
+        <div><label>Poids (g)</label><input id="b-poids" type="number" inputmode="decimal" value="340"></div>
+      </div>
+      <button class="main" id="addBean">Ajouter</button>
+    </div>
+    <div id="beanList"></div>
+  </section>
+
+  <section id="setup">
+    <div class="card">
+      <h2>Équipement</h2>
+      <label>Moulin</label><input id="g-moulin">
+      <label>Pas de correction (graduations)</label><input id="g-pas" type="number" inputmode="decimal" step="0.1">
+      <label>Machine</label><input id="g-machine">
+      <label style="display:flex;gap:8px;align-items:center;color:var(--txt)"><input id="g-hx" type="checkbox" style="width:auto"> Échangeur thermique (flush de refroidissement)</label>
+      <button class="main" id="saveGear">Enregistrer</button>
+    </div>
+    <div class="card">
+      <h2>Analyse IA (Claude)</h2>
+      <label>Clé API Anthropic</label><input id="g-cle" type="password" autocomplete="off" placeholder="sk-ant-…">
+      <p class="mut">Gardée sur ce téléphone seulement, jamais exportée. Mets une limite de dépenses sur console.anthropic.com.</p>
+      <button class="main" id="saveCle">Enregistrer la clé</button>
+    </div>
+    <div class="card">
+      <h2>Sauvegarde</h2>
+      <p class="mut">Tes données restent sur ce téléphone. Exporte-les de temps en temps.</p>
+      <button class="main" id="export">Exporter (JSON)</button>
+      <label>Importer une sauvegarde</label><input id="import" type="file" accept="application/json,.json">
+    </div>
+  </section>
+</main>
+<nav>
+  <button data-tab="brew" class="on">Infuser</button>
+  <button data-tab="log">Journal</button>
+  <button data-tab="beans">Grains</button>
+  <button data-tab="setup">Réglages</button>
+</nav>
+<script>
+const KEY = 'dialin-v1';
+const METHODES = {
+  espresso: {nom:'Espresso', dose:18, eau:36, temp:93, temps:28, unite:'s', eauLbl:'Rendement (g)'},
+  v60: {nom:'V60', dose:15, eau:250, temp:94, temps:180, unite:'s', etapes:[[0,'Bloom : 45 g, remuer'],[45,'Verser jusqu’à 150 g'],[75,'Verser jusqu’à 250 g'],[105,'Tourner doucement, laisser couler'],[180,'Fin visée']]},
+  chemex: {nom:'Chemex', dose:30, eau:500, temp:95, temps:270, unite:'s', etapes:[[0,'Bloom : 60 g'],[45,'Verser jusqu’à 250 g'],[90,'Verser jusqu’à 500 g'],[150,'Laisser couler'],[270,'Fin visée']]},
+  aeropress: {nom:'AeroPress', dose:15, eau:230, temp:85, temps:150, unite:'s', etapes:[[0,'Verser 230 g, remuer 3 fois'],[10,'Poser le piston sans presser'],[120,'Remuer, presser 30 s'],[150,'Fin']]},
+  piston: {nom:'Piston', dose:30, eau:500, temp:95, temps:540, unite:'s', etapes:[[0,'Verser 500 g'],[240,'Casser la croûte, écumer'],[540,'Presser doucement, servir']]},
+  moka: {nom:'Moka', dose:17, eau:170, temp:80, temps:300, unite:'s', etapes:[[0,'Eau chaude dans la base, feu moyen-doux, couvercle ouvert'],[240,'Retirer au premier gargouillement, refroidir la base']]},
+  coldbrew: {nom:'Cold brew', dose:100, eau:1000, temp:4, temps:16, unite:'h'}
+};
+const GOUTS = {acide:'Acide', aqueux:'Aqueux', amer:'Amer', astringent:'Astringent', fort:'Trop fort', equilibre:'Équilibré'};
+
+let S = load();
+let ui = {methode:'espresso', gout:null, note:0};
+let timer = {t0:0, id:0, lock:null};
+
+function load(){
+  let d = null;
+  try { d = JSON.parse(localStorage.getItem(KEY)); } catch(e){}
+  return Object.assign({beans:[], brews:[], gear:{moulin:'Eureka Mignon Specialita', pas:1, machine:'Profitec Pro 500', hx:true}}, d || {});
+}
+function save(){ try { localStorage.setItem(KEY, JSON.stringify(S)); } catch(e){ alert('Sauvegarde impossible : ' + e.message); } }
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const num = id => parseFloat($(id).value);
+const r1 = x => Math.round(x * 10) / 10;
+const fmt = s => Math.floor(s / 60) + ':' + String(Math.floor(s % 60)).padStart(2, '0');
+
+function joursDepuis(date){ return date ? Math.floor((Date.now() - new Date(date + 'T00:00')) / 864e5) : null; }
+function fraicheur(b){
+  if (b.gel) return ['t-gel', 'congelé'];
+  const j = joursDepuis(b.date);
+  if (j == null) return ['t-ideal', '?'];
+  if (j < 5) return ['t-repos', 'au repos · ' + j + ' j'];
+  if (j <= 35) return ['t-ideal', 'idéal · ' + j + ' j'];
+  return ['t-declin', 'en déclin · ' + j + ' j'];
+}
+
+// ---- Infuser ----
+function renderMethodes(){
+  $('methods').innerHTML = Object.entries(METHODES).map(([k, m]) =>
+    `<button data-m="${k}" class="${k === ui.methode ? 'on' : ''}">${m.nom}</button>`).join('');
+}
+function renderBrew(reprendre){
+  const m = METHODES[ui.methode];
+  renderMethodes();
+  const actifs = S.beans.filter(b => b.reste > 0 || !b.poids);
+  const choisi = $('f-bean').value;
+  $('f-bean').innerHTML = '<option value="">—</option>' + actifs.map(b => `<option value="${b.id}">${esc(b.nom)}</option>`).join('');
+  if (actifs.some(b => b.id === choisi)) $('f-bean').value = choisi;
+  if (reprendre) prefill();
+  $('grinderName').textContent = '(' + S.gear.moulin + ')';
+  $('l-eau').textContent = m.eauLbl || 'Eau (g)';
+  $('l-temps').textContent = m.unite === 'h' ? 'Infusion (h)' : 'Temps (s)';
+  $('timerCard').style.display = m.unite === 'h' ? 'none' : '';
+  $('tastes').innerHTML = Object.entries(GOUTS).map(([k, v]) => `<button data-g="${k}" class="${k === ui.gout ? 'on' : ''}">${v}</button>`).join('');
+  $('stars').innerHTML = [1,2,3,4,5].map(n => `<button data-n="${n}" class="${n <= ui.note ? 'on' : ''}">${n}</button>`).join('');
+  renderSteps(0);
+  majRatio();
+}
+function prefill(){
+  const m = METHODES[ui.methode], bean = $('f-bean').value;
+  const dernier = S.brews.find(b => b.methode === ui.methode && b.bean === bean) || S.brews.find(b => b.methode === ui.methode);
+  const src = dernier || m;
+  $('f-dose').value = src.dose; $('f-eau').value = src.eau; $('f-temp').value = src.temp;
+  $('f-temps').value = src.temps;
+  $('f-mouture').value = dernier ? dernier.mouture ?? '' : '';
+}
+function majRatio(){
+  const d = num('f-dose'), e = num('f-eau');
+  $('ratio').textContent = d > 0 && e > 0 ? 'Ratio 1:' + r1(e / d) : '';
+}
+function renderSteps(t){
+  const et = METHODES[ui.methode].etapes || [];
+  let idx = -1; et.forEach((s, i) => { if (t >= s[0]) idx = i; });
+  $('steps').innerHTML = et.map((s, i) => `<div class="${i === idx && timer.id ? 'now' : ''}">${fmt(s[0])} — ${s[1]}</div>`).join('');
+}
+async function toggleTimer(){
+  if (timer.id){
+    clearInterval(timer.id); timer.id = 0;
+    $('f-temps').value = Math.round((Date.now() - timer.t0) / 1000);
+    $('tbtn').textContent = 'Démarrer';
+    try { timer.lock && timer.lock.release(); } catch(e){}
+    renderSteps(0);
+    return;
+  }
+  timer.t0 = Date.now();
+  try { timer.lock = await navigator.wakeLock?.request('screen'); } catch(e){}
+  timer.id = setInterval(() => {
+    const t = (Date.now() - timer.t0) / 1000;
+    $('clock').textContent = fmt(t);
+    renderSteps(t);
+  }, 200);
+  $('tbtn').textContent = 'Arrêter';
+}
+
+// ---- Suggestion ----
+function suggestion(b){
+  const pas = S.gear.pas || 1, g = b.gout, t = b.temps;
+  const fin = n => `Plus fin de ${r1(pas * n)} graduation(s).`;
+  const gros = n => `Plus grossier de ${r1(pas * n)} graduation(s).`;
+  if (g === 'equilibre') return 'Bon résultat : garde ce réglage pour ce grain.';
+  switch (b.methode){
+    case 'espresso': {
+      const vite = t < 25, lent = t > 32;
+      if (g === 'acide') return vite ? `${fin(1)} Le shot coule trop vite (${t} s).` : `Temps correct : allonge le ratio (≈ ${r1(b.eau + 3)} g) ou monte la température de 1 °C.`;
+      if (g === 'aqueux') return vite ? `${fin(1)} Le shot coule trop vite (${t} s).` : `Monte la dose à ${r1(b.dose + 0.5)} g ou raccourcis le ratio (≈ ${r1(b.eau - 3)} g).`;
+      if (g === 'amer') return lent ? `${gros(1)} Le shot est trop long (${t} s).` : `Raccourcis le ratio (≈ ${r1(b.eau - 3)} g) ou baisse la température de 1 °C` + (S.gear.hx ? ' (flush de refroidissement plus long).' : '.');
+      if (g === 'astringent') return lent ? `${gros(1)} Le shot est trop long (${t} s).` : 'Probable channeling : soigne la distribution (WDT) et un tassage bien à plat, garde la mouture.';
+      if (g === 'fort') return `Allonge le ratio (≈ ${r1(b.eau + 4)} g) pour adoucir.`;
+      break;
+    }
+    case 'v60': case 'chemex':
+      if (g === 'acide') return `${fin(2)} Ou monte la température de 1-2 °C.`;
+      if (g === 'aqueux') return `${fin(2)} Ou resserre le ratio (dose ${r1(b.dose + 1)} g).`;
+      if (g === 'amer') return `${gros(2)} Ou baisse la température de 1-2 °C.`;
+      if (g === 'astringent') return `${gros(2)} Verse plus doucement, sans remuer à la fin.`;
+      if (g === 'fort') return `Ajoute de l'eau (≈ ${Math.round(b.eau + 20)} g).`;
+      break;
+    case 'aeropress': case 'piston':
+      if (g === 'acide') return `Infuse 30 s de plus, ou ${fin(2).toLowerCase()}`;
+      if (g === 'aqueux') return `Monte la dose à ${r1(b.dose + 1)} g.`;
+      if (g === 'amer') return `Infuse 30 s de moins, ou ${gros(2).toLowerCase()}`;
+      if (g === 'astringent') return `${gros(2)} Presse plus doucement.`;
+      if (g === 'fort') return `Ajoute de l'eau (≈ ${Math.round(b.eau + 20)} g).`;
+      break;
+    case 'moka':
+      if (g === 'acide') return `${fin(2)} Remplis le panier à ras, sans tasser.`;
+      if (g === 'aqueux') return 'Remplis le panier à ras et retire du feu plus tôt.';
+      if (g === 'amer') return 'Retire du feu plus tôt, démarre avec de l’eau chaude, feu plus doux.';
+      if (g === 'astringent') return gros(2);
+      if (g === 'fort') return 'Allonge à l’eau chaude au service.';
+      break;
+    case 'coldbrew':
+      if (g === 'acide' || g === 'aqueux') return `Infuse 2 h de plus, ou monte la dose à ${Math.round(b.dose + 10)} g.`;
+      if (g === 'amer' || g === 'astringent') return `Infuse 2 h de moins, ou ${gros(2).toLowerCase()}`;
+      if (g === 'fort') return 'Dilue 1:1 avec de l’eau ou du lait au service.';
+  }
+  return 'Choisis un goût pour obtenir une correction.';
+}
+
+function enregistrer(){
+  const b = {
+    id: crypto.randomUUID?.() || String(Date.now()), date: new Date().toISOString(),
+    methode: ui.methode, bean: $('f-bean').value,
+    dose: num('f-dose'), eau: num('f-eau'), temp: num('f-temp'), temps: num('f-temps'),
+    mouture: isNaN(num('f-mouture')) ? null : num('f-mouture'),
+    gout: ui.gout, note: ui.note, notes: $('f-notes').value.trim(), diag: ui.diag || ''
+  };
+  if (!(b.dose > 0) || !(b.eau > 0)) return alert('Dose et eau requises.');
+  b.sugg = ui.gout ? suggestion(b) : '';
+  S.brews.unshift(b);
+  const bean = S.beans.find(x => x.id === b.bean);
+  if (bean && bean.reste != null) bean.reste = Math.max(0, r1(bean.reste - b.dose));
+  save();
+  $('result').innerHTML = b.sugg ? `<div class="sugg"><b>Prochain essai :</b> ${esc(b.sugg)}</div>` : '<div class="sugg">Enregistré.</div>';
+  ui.gout = null; ui.note = 0; ui.diag = ''; $('f-notes').value = ''; $('diag').innerHTML = '';
+  $('clock').textContent = '0:00';
+  renderBrew(true);
+}
+
+// ---- Journal ----
+function renderLog(){
+  const nomBean = id => S.beans.find(b => b.id === id)?.nom || '';
+  $('logList').innerHTML = S.brews.length ? S.brews.map(b => {
+    const m = METHODES[b.methode];
+    return `<div class="card"><div class="item"><div>
+      <b>${m.nom}</b> ${esc(nomBean(b.bean))}<div class="mut">${new Date(b.date).toLocaleString('fr-CA', {dateStyle:'medium', timeStyle:'short'})}</div>
+      <div>${b.dose} g → ${b.eau} g · ${b.temps} ${m.unite} · ${b.temp} °C${b.mouture != null ? ' · mouture ' + b.mouture : ''}</div>
+      <div class="mut">${b.gout ? GOUTS[b.gout] : ''}${b.note ? ' · ' + b.note + '/5' : ''}${b.notes ? ' · ' + esc(b.notes) : ''}</div>
+      ${b.sugg ? `<div class="sugg">${esc(b.sugg)}</div>` : ''}
+      ${b.diag ? `<div class="sugg" style="white-space:pre-line">📷 ${esc(b.diag)}</div>` : ''}
+    </div><button class="x" data-del-brew="${b.id}">✕</button></div></div>`;
+  }).join('') : '<p class="mut">Aucune infusion encore.</p>';
+}
+
+// ---- Grains ----
+function renderBeans(){
+  $('beanList').innerHTML = S.beans.map(b => {
+    const [cls, txt] = fraicheur(b);
+    return `<div class="card"><div class="item"><div>
+      <b>${esc(b.nom)}</b><div class="mut">${esc([b.torr, b.orig].filter(Boolean).join(' · '))}</div>
+      <div class="mut">${b.reste != null ? b.reste + ' g restants' : ''}</div></div>
+      <span class="tag ${cls}">${txt}</span></div>
+      <div style="display:flex;gap:8px;margin-top:10px">
+        <button data-gel="${b.id}">${b.gel ? 'Décongeler' : 'Congeler'}</button>
+        <button data-del-bean="${b.id}">Supprimer</button></div></div>`;
+  }).join('');
+}
+function ajouterGrain(){
+  const nom = $('b-nom').value.trim();
+  if (!nom) return alert('Nom requis.');
+  const poids = num('b-poids');
+  S.beans.unshift({id: crypto.randomUUID?.() || String(Date.now()), nom, torr: $('b-torr').value.trim(), orig: $('b-orig').value.trim(),
+    date: $('b-date').value, poids: poids || null, reste: poids || null, gel: false});
+  save();
+  ['b-nom', 'b-torr', 'b-orig', 'b-date'].forEach(id => $(id).value = '');
+  renderBeans();
+}
+
+// ---- IA (Claude vision) ----
+const CLE = 'dialin-cle', MODELE = 'claude-sonnet-5-5';
+function lireCle(){ try { return localStorage.getItem(CLE) || ''; } catch(e){ return ''; } }
+function prendrePhoto(){
+  return new Promise((ok, ko) => {
+    const inp = document.createElement('input');
+    inp.type = 'file'; inp.accept = 'image/*'; inp.capture = 'environment';
+    inp.onchange = () => {
+      const f = inp.files[0]; if (!f) return ko(new Error('aucune photo'));
+      const img = new Image();
+      img.onload = () => {
+        const k = Math.min(1, 1280 / Math.max(img.width, img.height));
+        const c = document.createElement('canvas');
+        c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+        c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+        URL.revokeObjectURL(img.src);
+        ok(c.toDataURL('image/jpeg', 0.85).split(',')[1]);
+      };
+      img.onerror = () => ko(new Error('image illisible'));
+      img.src = URL.createObjectURL(f);
+    };
+    inp.click();
+  });
+}
+async function demanderIA(consigne, b64){
+  const cle = lireCle();
+  if (!cle) throw new Error('ajoute ta clé API dans Réglages');
+  const r = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {'content-type': 'application/json', 'x-api-key': cle, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true'},
+    body: JSON.stringify({model: MODELE, max_tokens: 600, messages: [{role: 'user', content: [
+      {type: 'image', source: {type: 'base64', media_type: 'image/jpeg', data: b64}},
+      {type: 'text', text: consigne}]}]})
+  });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(d.error?.message || 'erreur ' + r.status);
+  return d.content.filter(c => c.type === 'text').map(c => c.text).join('\n').trim();
+}
+function lireJSON(txt){
+  const m = txt.match(/\{[\s\S]*\}/);
+  if (!m) throw new Error('réponse IA illisible');
+  return JSON.parse(m[0]);
+}
+async function avecIA(btn, travail){
+  const texte = btn.textContent;
+  btn.disabled = true; btn.textContent = 'Analyse…';
+  try { await travail(await prendrePhoto()); }
+  catch(e){ if (e.message !== 'aucune photo') alert('IA : ' + e.message); }
+  finally { btn.disabled = false; btn.textContent = texte; }
+}
+function remplirBalance(v){
+  if (v.dose_g > 0) $('f-dose').value = v.dose_g;
+  if (v.poids_g > 0) $('f-eau').value = v.poids_g;
+  if (v.temps_s > 0) $('f-temps').value = Math.round(v.temps_s);
+  if (v.debit_gs > 0 && !/débit/.test($('f-notes').value)) $('f-notes').value = ($('f-notes').value + ' débit ' + v.debit_gs + ' g/s').trim();
+  majRatio();
+}
+function remplirSac(v){
+  if (v.nom) $('b-nom').value = v.nom;
+  if (v.torrefacteur) $('b-torr').value = v.torrefacteur;
+  $('b-orig').value = [v.origine, v.process].filter(Boolean).join(' · ');
+  if (/^\d{4}-\d{2}-\d{2}$/.test(v.date_torrefaction || '')) $('b-date').value = v.date_torrefaction;
+  if (v.poids_g > 0) $('b-poids').value = v.poids_g;
+}
+function contexteInfusion(){
+  const m = METHODES[ui.methode], g = S.gear;
+  return `Méthode : ${m.nom}. Dose ${$('f-dose').value} g, ${m.eauLbl ? 'rendement' : 'eau'} ${$('f-eau').value} g, ` +
+    `temps ${$('f-temps').value} ${m.unite}, ${$('f-temp').value} °C, mouture ${$('f-mouture').value || '?'} sur ${g.moulin}` +
+    (ui.methode === 'espresso' ? `, machine ${g.machine}${g.hx ? ' (échangeur thermique)' : ''}` : '') +
+    `. Goût perçu : ${ui.gout ? GOUTS[ui.gout] : 'non précisé'}.`;
+}
+const P_BALANCE = 'Photo de l’écran d’une balance à café (MAVO Lumicurve) après une extraction. Lis les valeurs affichées. ' +
+  'Réponds UNIQUEMENT avec ce JSON : {"poids_g":nombre|null,"temps_s":nombre|null,"dose_g":nombre|null,"debit_gs":nombre|null}. ' +
+  'Convertis un temps mm:ss en secondes. Mets null pour toute valeur absente ou illisible, n’invente rien.';
+const P_SAC = () => `Photo d’un sac de café. Aujourd’hui : ${new Date().toISOString().slice(0, 10)}. Réponds UNIQUEMENT avec ce JSON : ` +
+  '{"nom":texte court ex. "Éthiopie Guji","torrefacteur":texte|null,"origine":texte|null,"process":texte|null,"date_torrefaction":"AAAA-MM-JJ"|null,"poids_g":nombre|null}. ' +
+  'Si l’année manque, prends la date passée la plus récente. null si absent, n’invente rien.';
+const P_GALETTE = () => 'Tu es un barista expert. ' + contexteInfusion() +
+  ' Analyse la photo (galette après extraction, crema ou tasse). Réponds en français, 3 lignes courtes : ' +
+  '« Observation : … », « Cause probable : … », « Prochain essai : … » (une seule correction concrète, chiffrée si possible). ' +
+  'Si la photo ne montre rien d’utile, dis-le.';
+
+// ---- Réglages ----
+function renderSetup(){
+  $('g-moulin').value = S.gear.moulin; $('g-pas').value = S.gear.pas;
+  $('g-machine').value = S.gear.machine; $('g-hx').checked = !!S.gear.hx;
+  $('g-cle').value = ''; $('g-cle').placeholder = lireCle() ? 'clé enregistrée ✓' : 'sk-ant-…';
+}
+async function exporter(){
+  const nom = 'dialin-' + new Date().toISOString().slice(0, 10) + '.json';
+  const fichier = new File([JSON.stringify(S, null, 1)], nom, {type: 'application/json'});
+  if (navigator.canShare?.({files: [fichier]})) {
+    try { await navigator.share({files: [fichier]}); return; } catch(e){ if (e.name === 'AbortError') return; }
+  }
+  const a = document.createElement('a'); a.href = URL.createObjectURL(fichier); a.download = nom; a.click();
+}
+function importer(e){
+  const f = e.target.files[0]; if (!f) return;
+  f.text().then(t => {
+    const d = JSON.parse(t);
+    if (!Array.isArray(d.brews) || !Array.isArray(d.beans)) throw new Error('fichier invalide');
+    if (!confirm(`Remplacer les données actuelles par ${d.brews.length} infusions et ${d.beans.length} grains ?`)) return;
+    S = Object.assign(load(), d); save(); renderAll(); alert('Importé.');
+  }).catch(err => alert('Import impossible : ' + err.message));
+  e.target.value = '';
+}
+
+function renderAll(){ renderBrew(true); renderLog(); renderBeans(); renderSetup(); }
+
+// ---- Événements ----
+document.querySelector('nav').onclick = e => {
+  const t = e.target.dataset.tab; if (!t) return;
+  document.querySelectorAll('nav button, main section').forEach(x => x.classList.toggle('on', x.dataset.tab === t || x.id === t));
+  if (t === 'log') renderLog(); if (t === 'brew') renderBrew();
+};
+$('methods').onclick = e => { const m = e.target.dataset.m; if (!m || timer.id) return; ui.methode = m; $('result').innerHTML = ''; renderBrew(true); };
+$('tastes').onclick = e => { const g = e.target.dataset.g; if (!g) return; ui.gout = ui.gout === g ? null : g; renderBrew(); };
+$('stars').onclick = e => { const n = +e.target.dataset.n; if (!n) return; ui.note = n; renderBrew(); };
+$('f-bean').onchange = () => { prefill(); majRatio(); };
+['f-dose', 'f-eau'].forEach(id => $(id).oninput = majRatio);
+$('tbtn').onclick = toggleTimer;
+$('save').onclick = enregistrer;
+$('addBean').onclick = ajouterGrain;
+$('beanList').onclick = e => {
+  const g = e.target.dataset.gel, d = e.target.dataset.delBean;
+  if (g){ const b = S.beans.find(x => x.id === g); b.gel = !b.gel; save(); renderBeans(); }
+  if (d && confirm('Supprimer ce grain ?')){ S.beans = S.beans.filter(x => x.id !== d); save(); renderBeans(); }
+};
+$('logList').onclick = e => {
+  const d = e.target.dataset.delBrew;
+  if (d && confirm('Supprimer cette infusion ?')){ S.brews = S.brews.filter(x => x.id !== d); save(); renderLog(); }
+};
+$('saveGear').onclick = () => {
+  S.gear = {moulin: $('g-moulin').value.trim() || 'Moulin', pas: num('g-pas') || 1, machine: $('g-machine').value.trim(), hx: $('g-hx').checked};
+  save(); alert('Équipement enregistré.');
+};
+$('saveCle').onclick = () => {
+  const v = $('g-cle').value.trim();
+  try { v ? localStorage.setItem(CLE, v) : localStorage.removeItem(CLE); } catch(e){ return alert('Enregistrement impossible.'); }
+  renderSetup(); alert(v ? 'Clé enregistrée.' : 'Clé effacée.');
+};
+$('iaBalance').onclick = e => avecIA(e.target, async b64 => remplirBalance(lireJSON(await demanderIA(P_BALANCE, b64))));
+$('iaSac').onclick = e => avecIA(e.target, async b64 => remplirSac(lireJSON(await demanderIA(P_SAC(), b64))));
+$('iaGalette').onclick = e => avecIA(e.target, async b64 => {
+  ui.diag = await demanderIA(P_GALETTE(), b64);
+  $('diag').innerHTML = `<div class="sugg" style="white-space:pre-line">📷 ${esc(ui.diag)}</div>`;
+});
+$('export').onclick = exporter;
+$('import').onchange = importer;
+
+renderAll();
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+</script>
+</body>
+</html>
